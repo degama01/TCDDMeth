@@ -2,8 +2,8 @@
 ***
 
 
-de Gannes, M., Ko, CI., Zhang, X., Biesiada, J.,
-Medvedovic, M.,  & Puga A.
+de Gannes, M., Ko, CI., Koch, S., Zhang, X., Biesiada, J.,
+Medvedovic, M., Rubinstein, J.,  & Puga A.
 
 ## Data
 ***
@@ -23,7 +23,7 @@ All reference files are included in this repository, and will be downloaded by c
 
 Scripts for all analyses are saved to ```./Code/```. All scripts should be run with this directory set as the working directory (```./```).
 
-All analyses were performed in [RStudio](https://rstudio.com/) version 1.3 on Windows 10, using the following packages:
+All analyses were performed in [R](https://www.r-project.org/) version 4.0.0 on Windows 10, using the following packages:
 
 * tidyverse
 * circlize
@@ -57,10 +57,10 @@ BiocManager::install("methylKit")
   1. Clone this repository
   2. Download all the required data as described here and in ```./Data/README.md```
   3. Install the packages listed above
-  4. Run the following in RStudio:
+  4. Run the following in R:
   ```
   setwd("/path/to/TCDDMeth")
-  source("./Code/EntirePipeline.Rmd")
+  source("./Code/EntirePipeline.r")
   ```
   
 ## Output
