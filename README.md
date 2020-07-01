@@ -8,15 +8,12 @@ Medvedovic, M., Rubinstein, J.,  & Puga A.
 ## Data
 ***
 
-Here, we use three datasets generated from our study: 1) raw.data.rda, 2) res.list.rda, and 3) myobj.rds. See ```./Data/README.md``` for details.
-
-* Raw and processed data were downloaded from [GEO](https://www.ncbi.nlm.nih.gov/geo/) and saved to ```./Data/```.
-* Methylation counts data that were processed in our study are included in ```./Data/``` and will be downloaded by cloning this repository.
+All data files required to run the code used to perform the analysis is included in the ```./Data``` folder and will be downloaded there when this repository is cloned.
 
 ## Reference Files
 ***
 
-All reference files are included in this repository, and will be downloaded by cloning it.
+All raw and processed data from our study used to derive the files for the analysis can be downloaded from [GEO](https://www.ncbi.nlm.nih.gov/geo/) and saved to ```./Reference Files/```. They are not required to run the code included in this repository.
 
 ## Analyses
 ***
@@ -54,10 +51,9 @@ BiocManager::install("methylKit")
 
 ### To run the analyses:
 
-  1. Clone this repository
-  2. Download all the required data as described here and in ```./Data/README.md```
-  3. Install the packages listed above
-  4. Run the following in R:
+  1. Clone this repository.
+  2. Install the packages listed above.
+  3. Run the following in R:
   ```
   setwd("/path/to/TCDDMeth")
   source("./Code/EntirePipeline.r")
