@@ -1,0 +1,1 @@
+# All figures from output should be in this folder after running the code.
