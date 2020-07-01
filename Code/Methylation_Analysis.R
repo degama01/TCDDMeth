@@ -16,8 +16,8 @@ library(ggplot2)
 #' 
 ## -----------------------------------------------------------------------------------------------------------
 # Loading the data files
-load(file="./Data/myobj.rds")
-raw.df=unite(myobj, destrand=FALSE)
+#load(file="./Data/myobj.rds")
+#raw.df=unite(myobj, destrand=FALSE)
 expr.df <- read.csv("./Output/exp_scaled.csv")
 
 samples.names =
@@ -31,57 +31,57 @@ tr = c(0,0,1,1,2,2,3,3,4,4)
 #' # Start setting up the large dataframe as the original comparisons were done, this time including the B1TCDD24vsB1DMSO24 comparison. Use the EdgeR methylation as an example to guide the set up, annotations, and labelling of columns.
 #' 
 ## -----------------------------------------------------------------------------------------------------------
-working.df <- raw.df
-working.df <- tbl_df(working.df)
-working.df$chr = str_remove_all(working.df$chr, "[chr]")
+#working.df <- raw.df
+#working.df <- tbl_df(working.df)
+#working.df$chr = str_remove_all(working.df$chr, "[chr]")
 
 
 #' 
 #' 
 ## -----------------------------------------------------------------------------------------------------------
-working.df <- working.df %>%
-  rename(start = "Locus") %>%
-  dplyr::select(-end, -strand, -starts_with("numTs")) %>%
-  rename(coverage1="APM11_coverage", coverage2="APM12_coverage", coverage3="APM13_coverage", coverage4="APM14_coverage", coverage5="APM15_coverage", coverage6="APM16_coverage", coverage7="APM17_coverage", coverage8="APM18_coverage", coverage9="APM19_coverage", coverage10="APM20_coverage") %>%
-  rename(numCs1="APM11_numCs", numCs2="APM12_numCs", numCs3="APM13_numCs", numCs4="APM14_numCs", numCs5="APM15_numCs", numCs6="APM16_numCs", numCs7="APM17_numCs", numCs8="APM18_numCs", numCs9="APM19_numCs", numCs10="APM20_numCs") %>%
-  mutate(ratioAPM11=APM11_numCs/APM11_coverage, ratioAPM12=APM12_numCs/APM12_coverage, ratioAPM13=APM13_numCs/APM13_coverage, ratioAPM14=APM14_numCs/APM14_coverage, ratioAPM15=APM15_numCs/APM15_coverage, ratioAPM16=APM16_numCs/APM16_coverage, ratioAPM17=APM17_numCs/APM17_coverage, ratioAPM18=APM18_numCs/APM18_coverage, ratioAPM19=APM19_numCs/APM19_coverage, ratioAPM20=APM20_numCs/APM20_coverage) %>%
-  rename(chr = "Chr") %>%
-  drop_na() %>%
-  print()
+#working.df <- working.df %>%
+  #rename(start = "Locus") %>%
+  #dplyr::select(-end, -strand, -starts_with("numTs")) %>%
+  #rename(coverage1="APM11_coverage", coverage2="APM12_coverage", coverage3="APM13_coverage", coverage4="APM14_coverage", coverage5="APM15_coverage", coverage6="APM16_coverage", coverage7="APM17_coverage", coverage8="APM18_coverage", coverage9="APM19_coverage", coverage10="APM20_coverage") %>%
+  #rename(numCs1="APM11_numCs", numCs2="APM12_numCs", numCs3="APM13_numCs", numCs4="APM14_numCs", numCs5="APM15_numCs", numCs6="APM16_numCs", numCs7="APM17_numCs", numCs8="APM18_numCs", numCs9="APM19_numCs", numCs10="APM20_numCs") %>%
+  #mutate(ratioAPM11=APM11_numCs/APM11_coverage, ratioAPM12=APM12_numCs/APM12_coverage, ratioAPM13=APM13_numCs/APM13_coverage, ratioAPM14=APM14_numCs/APM14_coverage, ratioAPM15=APM15_numCs/APM15_coverage, ratioAPM16=APM16_numCs/APM16_coverage, ratioAPM17=APM17_numCs/APM17_coverage, ratioAPM18=APM18_numCs/APM18_coverage, ratioAPM19=APM19_numCs/APM19_coverage, ratioAPM20=APM20_numCs/APM20_coverage) %>%
+  #rename(chr = "Chr") %>%
+  #drop_na() %>%
+  #print()
 
 
 #' 
 #' # For convenience, we sort the DGEList so that all loci are in genomic order, from chromosome 1 to chromosome Y.
 #' 
 ## -----------------------------------------------------------------------------------------------------------
-ChrNames <- c(1:19,"X","Y")
-working.df$Chr <- factor(working.df$Chr, levels=ChrNames)
-o <- order(working.df$Chr, working.df$Locus)
-working.df <- working.df[o,]
+#ChrNames <- c(1:19,"X","Y")
+#working.df$Chr <- factor(working.df$Chr, levels=ChrNames)
+#o <- order(working.df$Chr, working.df$Locus)
+#working.df <- working.df[o,]
 
 #' 
 #' 
-#' # Create dataframes for each of the comparisons, but for ALL the genes.
+#' # Obtain dataframes for each of the comparisons for ALL the genes.
 #' 
 ## -----------------------------------------------------------------------------------------------------------
-ES_all.df <- working.df %>%
-  dplyr::select(Chr, Locus, APM11_numCs, APM12_numCs, APM19_numCs, APM20_numCs, APM11_coverage, APM12_coverage, APM19_coverage, APM20_coverage, ratioAPM11, ratioAPM12, ratioAPM19, ratioAPM20) %>%
+ES_all.df <- read.csv("./Data/ES_all.csv") %>%
+  #dplyr::select(Chr, Locus, APM11_numCs, APM12_numCs, APM19_numCs, APM20_numCs, APM11_coverage, APM12_coverage, APM19_coverage, APM20_coverage, ratioAPM11, ratioAPM12, ratioAPM19, ratioAPM20) %>%
   print()
 
-DMSO_24_all.df <- working.df %>%
-  dplyr::select(Chr, Locus, APM19_numCs, APM20_numCs, APM19_coverage, APM20_coverage, ratioAPM19, ratioAPM20) %>%
+DMSO_24_all.df <- read.csv("./Data/DMSO_24_all.csv") %>%
+  #dplyr::select(Chr, Locus, APM19_numCs, APM20_numCs, APM19_coverage, APM20_coverage, ratioAPM19, ratioAPM20) %>%
   print()
 
-TCDD_24_all.df <- working.df %>%
-  dplyr::select(Chr, Locus, APM13_numCs, APM14_numCs, APM19_numCs, APM20_numCs, APM13_coverage, APM14_coverage, APM19_coverage, APM20_coverage, ratioAPM13, ratioAPM14, ratioAPM19, ratioAPM20) %>%
+TCDD_24_all.df <- read.csv("./Data/TCDD_24_all.csv") %>%
+  #dplyr::select(Chr, Locus, APM13_numCs, APM14_numCs, APM19_numCs, APM20_numCs, APM13_coverage, APM14_coverage, APM19_coverage, APM20_coverage, ratioAPM13, ratioAPM14, ratioAPM19, ratioAPM20) %>%
   print()
 
-TCDD_72_all.df <- working.df %>%
-  dplyr::select(Chr, Locus, APM15_numCs, APM16_numCs, APM19_numCs, APM20_numCs, APM15_coverage, APM16_coverage, APM19_coverage, APM20_coverage, ratioAPM15, ratioAPM16, ratioAPM19, ratioAPM20) %>%
+TCDD_72_all.df <- read.csv("./Data/TCDD_72_all.csv") %>%
+  #dplyr::select(Chr, Locus, APM15_numCs, APM16_numCs, APM19_numCs, APM20_numCs, APM15_coverage, APM16_coverage, APM19_coverage, APM20_coverage, ratioAPM15, ratioAPM16, ratioAPM19, ratioAPM20) %>%
   print()
 
-TCDD_96_all.df <- working.df %>%
-  dplyr::select(Chr, Locus, APM17_numCs, APM18_numCs, APM19_numCs, APM20_numCs, APM17_coverage, APM18_coverage, APM19_coverage, APM20_coverage, ratioAPM17, ratioAPM18, ratioAPM19, ratioAPM20) %>%
+TCDD_96_all.df <- read.csv("./Data/TCDD_96_all.csv") %>%
+  #dplyr::select(Chr, Locus, APM17_numCs, APM18_numCs, APM19_numCs, APM20_numCs, APM17_coverage, APM18_coverage, APM19_coverage, APM20_coverage, ratioAPM17, ratioAPM18, ratioAPM19, ratioAPM20) %>%
   print()
   
 
