@@ -361,7 +361,7 @@ TCDD_96_select.df <- tbl_df(TCDD_96_select.df)
 # Combine the dataframes
 Merged_select.df <- rbind(ES_select.df, DMSO_24_select.df, TCDD_72_select.df, TCDD_96_select.df)
 Merged_select.df <- Merged_select.df %>%
-  ungroup(symbol) %>%
+  #ungroup(symbol) %>%
   arrange(symbol) %>%
   print()
 
