@@ -29,6 +29,7 @@ All analyses were performed in [R](https://www.r-project.org/) version 4.0.0 on 
 * edgeR
 * org.Mm.eg.db
 * methylKit
+* ggVennDiagram
 
 These packages can be installed in R by running the following:
 
@@ -36,6 +37,7 @@ These packages can be installed in R by running the following:
 install.packages("tidyverse")
 install.packages("circlize")
 install.packages("RColorBrewer")
+install.packages("ggVennDiagram")
 
 if (!requireNamespace("BiocManager", quietly = TRUE))
     install.packages("BiocManager")
