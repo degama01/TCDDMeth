@@ -10,6 +10,7 @@ library(org.Mm.eg.db)
 library(methylKit)
 library(RColorBrewer)
 library(ggplot2)
+library(ggVennDiagram)
 
 #' 
 #' # Importing Datasets from Jacek and Scaled Gene Expression Table
@@ -137,17 +138,23 @@ raw_96.df <- read.csv("./Data/B1TCDD96vsB1DMSO24.csv")
 #' 
 ## -----------------------------------------------------------------------------------------------------------
 
-# Remove NAs from beta column
+# Remove NAs from beta column, add Bonferroni-adjusted p-value, and filter for adjusted p < 0.05.
 raw_ES.df <- raw_ES.df %>%
   drop_na(beta) %>%
+  mutate("FDR" = p.adjust(p.value, method="BH")) %>% # 2619
+  filter(FDR < 0.05) %>%
   print()
 
 raw_72.df <- raw_72.df %>%
   drop_na(beta) %>%
+  mutate("FDR" = p.adjust(p.value, method="BH")) %>% #573
+  filter(FDR < 0.05) %>%
   print()
 
 raw_96.df <- raw_96.df %>%
   drop_na(beta) %>%
+  mutate("FDR" = p.adjust(p.value, method="BH")) %>% #3026
+  filter(FDR < 0.05) %>%
   print()
 
 
@@ -375,12 +382,23 @@ Merged_select.df <- Merged_select.df %>%
   ungroup(symbol) %>%
   arrange(symbol) %>%
   print()
+write.csv(Merged_select.df, "./Output/Diff_Meth_Genes.csv")
 
 #' 
 #' 
 #' # Now determine the list of significant DMRs overlapping with your expression genes and filter for only those genes in a new dataset for methylation, and a new dataset for gene expression
 #' 
 ## -----------------------------------------------------------------------------------------------------------
+
+# Make Venn diagram showing overlapping differentially expressed and differentially methylated genes
+
+x <- list(DE=expr.df$X, DM=Merged_select.df$symbol)
+
+tiff("./Output/Figures/Fig2.tiff", units="in", width=5, height=5, res=300)
+ggVennDiagram(x)
+
+dev.off()
+
 Gene_List <- intersect(Merged_select.df$symbol, expr.df$X)
 
 meth_filtered.df <- Merged_select.df %>%
@@ -393,6 +411,14 @@ expr_filtered.df <- expr.df %>%
   arrange(Symbol) %>%
   print()
 
+# Also get list of genes differentially expressed, but not differentially methylated
+Expression_Genes.df <- read.csv("./Output/TCDD_B1_FDR_Filtered.csv")
+expr_filtered2.df <- Expression_Genes.df %>%
+  filter(!symbol %in% Merged_select.df$symbol) %>%
+  arrange(PValue) %>%
+  rename("logFC.group2"="logFC_ES", "logFC.group3"="logFC_TCDD24", "logFC.group4"="logFC_TCDD72", "logFC.group5"="logFC_TCDD96") %>%
+  print()
+write.csv(expr_filtered2.df, "./Output/DE_NotDM.csv")
 
 #' 
 #' # Now merge each of the dataframe comparisons containing ALL genes with the filtered methylated by locus, removing any symbols nonexistant (aka removing NAs) as these would be represent all non-significant genes
@@ -1032,163 +1058,162 @@ Filtered_96_threeUTR.df <- Filtered_96_Location.df %>%
 ## -----------------------------------------------------------------------------------------------------------
 # Create summary dataframe
 
-Methylation_Direction_ES.df <- data.frame("Number_hypo" = sum(Corr_Filtered_ES$Beta < 0), "Number_hyper" = sum(Corr_Filtered_ES$Beta > 0), "Number_up" = sum(Corr_Filtered_ES$Expression > 0), "Number_down" = sum(Corr_Filtered_ES$Expression < 0))
-  
+Methylation_Direction_ES.df <- data.frame("Number_hypo_up" = sum(Corr_Filtered_ES$Beta < 0 & Corr_Filtered_ES$Expression > 0), "Number_hypo_down" = sum(Corr_Filtered_ES$Beta < 0 & Corr_Filtered_ES$Expression < 0), "Number_hyper_up" = sum(Corr_Filtered_ES$Beta > 0 & Corr_Filtered_ES$Expression > 0), "Number_hyper_down" = sum(Corr_Filtered_ES$Beta > 0 & Corr_Filtered_ES$Expression < 0), "Total" = nrow(Corr_Filtered_ES)) %>%
+  print()
 
 #' 
 ## -----------------------------------------------------------------------------------------------------------
 # Add columns for percentages
 Methylation_Direction_ES.df <- tbl_df(Methylation_Direction_ES.df)
 Methylation_Direction_ES.df <- Methylation_Direction_ES.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
 ## -----------------------------------------------------------------------------------------------------------
 # Repeat for other groups
 
 ## 24 hours
-Methylation_Direction_24.df <- data.frame("Number_hypo" = sum(Corr_Filtered_24$Beta < 0), "Number_hyper" = sum(Corr_Filtered_24$Beta > 0), "Number_up" = sum(Corr_Filtered_24$Expression > 0), "Number_down" = sum(Corr_Filtered_24$Expression < 0))
+Methylation_Direction_24.df <- data.frame("Number_hypo_up" = sum(Corr_Filtered_24$Beta < 0 & Corr_Filtered_24$Expression > 0), "Number_hypo_down" = sum(Corr_Filtered_24$Beta < 0 & Corr_Filtered_24$Expression < 0), "Number_hyper_up" = sum(Corr_Filtered_24$Beta > 0 & Corr_Filtered_24$Expression > 0), "Number_hyper_down" = sum(Corr_Filtered_24$Beta > 0 & Corr_Filtered_24$Expression < 0), "Total" = nrow(Corr_Filtered_24))
 
 Methylation_Direction_24.df <- tbl_df(Methylation_Direction_24.df)
 Methylation_Direction_24.df <- Methylation_Direction_24.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
-
 ## 72 hours
-Methylation_Direction_72.df <- data.frame("Number_hypo" = sum(Corr_Filtered_72$Beta < 0), "Number_hyper" = sum(Corr_Filtered_72$Beta > 0), "Number_up" = sum(Corr_Filtered_72$Expression > 0), "Number_down" = sum(Corr_Filtered_72$Expression < 0))
+Methylation_Direction_72.df <- data.frame("Number_hypo_up" = sum(Corr_Filtered_72$Beta < 0 & Corr_Filtered_72$Expression > 0), "Number_hypo_down" = sum(Corr_Filtered_72$Beta < 0 & Corr_Filtered_72$Expression < 0), "Number_hyper_up" = sum(Corr_Filtered_72$Beta > 0 & Corr_Filtered_72$Expression > 0), "Number_hyper_down" = sum(Corr_Filtered_72$Beta > 0 & Corr_Filtered_72$Expression < 0), "Total" = nrow(Corr_Filtered_72))
 
 Methylation_Direction_72.df <- tbl_df(Methylation_Direction_72.df)
 Methylation_Direction_72.df <- Methylation_Direction_72.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 ## 96 hours
-Methylation_Direction_96.df <- data.frame("Number_hypo" = sum(Corr_Filtered_96$Beta < 0), "Number_hyper" = sum(Corr_Filtered_96$Beta > 0), "Number_up" = sum(Corr_Filtered_96$Expression > 0), "Number_down" = sum(Corr_Filtered_96$Expression < 0))
+Methylation_Direction_96.df <- data.frame("Number_hypo_up" = sum(Corr_Filtered_96$Beta < 0 & Corr_Filtered_96$Expression > 0), "Number_hypo_down" = sum(Corr_Filtered_96$Beta < 0 & Corr_Filtered_96$Expression < 0), "Number_hyper_up" = sum(Corr_Filtered_96$Beta > 0 & Corr_Filtered_96$Expression > 0), "Number_hyper_down" = sum(Corr_Filtered_96$Beta > 0 & Corr_Filtered_96$Expression < 0), "Total" = nrow(Corr_Filtered_96))
 
 Methylation_Direction_96.df <- tbl_df(Methylation_Direction_96.df)
 Methylation_Direction_96.df <- Methylation_Direction_96.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
 
 #' 
 ## -----------------------------------------------------------------------------------------------------------
 # Now do the same for each location
-
 ## ES
-Methylation_Promoter_ES.df <- data.frame("Number_hypo" = sum(Filtered_ES_Promoter.df$Beta < 0), "Number_hyper" = sum(Filtered_ES_Promoter.df$Beta > 0), "Number_up" = sum(Filtered_ES_Promoter.df$Expression > 0), "Number_down" = sum(Filtered_ES_Promoter.df$Expression < 0))
+Methylation_Promoter_ES.df <- data.frame("Number_hypo_up" = sum(Filtered_ES_Promoter.df$Beta < 0 & Filtered_ES_Promoter.df$Expression > 0), "Number_hypo_down" = sum(Filtered_ES_Promoter.df$Beta < 0 & Filtered_ES_Promoter.df$Expression < 0), "Number_hyper_up" = sum(Filtered_ES_Promoter.df$Beta > 0 & Filtered_ES_Promoter.df$Expression > 0), "Number_hyper_down" = sum(Filtered_ES_Promoter.df$Beta > 0 & Filtered_ES_Promoter.df$Expression < 0), "Total" = nrow(Filtered_ES_Promoter.df))
 
 Methylation_Promoter_ES.df <- tbl_df(Methylation_Promoter_ES.df)
 Methylation_Promoter_ES.df <- Methylation_Promoter_ES.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_Intron_ES.df <- data.frame("Number_hypo" = sum(Filtered_ES_Intron.df$Beta < 0), "Number_hyper" = sum(Filtered_ES_Intron.df$Beta > 0), "Number_up" = sum(Filtered_ES_Intron.df$Expression > 0), "Number_down" = sum(Filtered_ES_Intron.df$Expression < 0))
+Methylation_Intron_ES.df <- data.frame("Number_hypo_up" = sum(Filtered_ES_Intron.df$Beta < 0 & Filtered_ES_Intron.df$Expression > 0), "Number_hypo_down" = sum(Filtered_ES_Intron.df$Beta < 0 & Filtered_ES_Intron.df$Expression < 0), "Number_hyper_up" = sum(Filtered_ES_Intron.df$Beta > 0 & Filtered_ES_Intron.df$Expression > 0), "Number_hyper_down" = sum(Filtered_ES_Intron.df$Beta > 0 & Filtered_ES_Intron.df$Expression < 0), "Total" = nrow(Filtered_ES_Intron.df))
 
 Methylation_Intron_ES.df <- tbl_df(Methylation_Intron_ES.df)
 Methylation_Intron_ES.df <- Methylation_Intron_ES.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_coding_ES.df <- data.frame("Number_hypo" = sum(Filtered_ES_coding.df$Beta < 0), "Number_hyper" = sum(Filtered_ES_coding.df$Beta > 0), "Number_up" = sum(Filtered_ES_coding.df$Expression > 0), "Number_down" = sum(Filtered_ES_coding.df$Expression < 0))
+Methylation_coding_ES.df <- data.frame("Number_hypo_up" = sum(Filtered_ES_coding.df$Beta < 0 & Filtered_ES_coding.df$Expression > 0), "Number_hypo_down" = sum(Filtered_ES_coding.df$Beta < 0 & Filtered_ES_coding.df$Expression < 0), "Number_hyper_up" = sum(Filtered_ES_coding.df$Beta > 0 & Filtered_ES_coding.df$Expression > 0), "Number_hyper_down" = sum(Filtered_ES_coding.df$Beta > 0 & Filtered_ES_coding.df$Expression < 0), "Total" = nrow(Filtered_ES_coding.df))
 
 Methylation_coding_ES.df <- tbl_df(Methylation_coding_ES.df)
 Methylation_coding_ES.df <- Methylation_coding_ES.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_threeUTR_ES.df <- data.frame("Number_hypo" = sum(Filtered_ES_threeUTR.df$Beta < 0), "Number_hyper" = sum(Filtered_ES_threeUTR.df$Beta > 0), "Number_up" = sum(Filtered_ES_threeUTR.df$Expression > 0), "Number_down" = sum(Filtered_ES_threeUTR.df$Expression < 0))
+Methylation_threeUTR_ES.df <- data.frame("Number_hypo_up" = sum(Filtered_ES_threeUTR.df$Beta < 0 & Filtered_ES_threeUTR.df$Expression > 0), "Number_hypo_down" = sum(Filtered_ES_threeUTR.df$Beta < 0 & Filtered_ES_threeUTR.df$Expression < 0), "Number_hyper_up" = sum(Filtered_ES_threeUTR.df$Beta > 0 & Filtered_ES_threeUTR.df$Expression > 0), "Number_hyper_down" = sum(Filtered_ES_threeUTR.df$Beta > 0 & Filtered_ES_threeUTR.df$Expression < 0), "Total" = nrow(Filtered_ES_threeUTR.df))
 
 Methylation_threeUTR_ES.df <- tbl_df(Methylation_threeUTR_ES.df)
 Methylation_threeUTR_ES.df <- Methylation_threeUTR_ES.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
 ##24
-Methylation_Promoter_24.df <- data.frame("Number_hypo" = sum(Filtered_24_Promoter.df$Beta < 0), "Number_hyper" = sum(Filtered_24_Promoter.df$Beta > 0), "Number_up" = sum(Filtered_24_Promoter.df$Expression > 0), "Number_down" = sum(Filtered_24_Promoter.df$Expression < 0))
+Methylation_Promoter_24.df <- data.frame("Number_hypo_up" = sum(Filtered_24_Promoter.df$Beta < 0 & Filtered_24_Promoter.df$Expression > 0), "Number_hypo_down" = sum(Filtered_24_Promoter.df$Beta < 0 & Filtered_24_Promoter.df$Expression < 0), "Number_hyper_up" = sum(Filtered_24_Promoter.df$Beta > 0 & Filtered_24_Promoter.df$Expression > 0), "Number_hyper_down" = sum(Filtered_24_Promoter.df$Beta > 0 & Filtered_24_Promoter.df$Expression < 0), "Total" = nrow(Filtered_24_Promoter.df))
 
 Methylation_Promoter_24.df <- tbl_df(Methylation_Promoter_24.df)
 Methylation_Promoter_24.df <- Methylation_Promoter_24.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_Intron_24.df <- data.frame("Number_hypo" = sum(Filtered_24_Intron.df$Beta < 0), "Number_hyper" = sum(Filtered_24_Intron.df$Beta > 0), "Number_up" = sum(Filtered_24_Intron.df$Expression > 0), "Number_down" = sum(Filtered_24_Intron.df$Expression < 0))
+Methylation_Intron_24.df <- data.frame("Number_hypo_up" = sum(Filtered_24_Intron.df$Beta < 0 & Filtered_24_Intron.df$Expression > 0), "Number_hypo_down" = sum(Filtered_24_Intron.df$Beta < 0 & Filtered_24_Intron.df$Expression < 0), "Number_hyper_up" = sum(Filtered_24_Intron.df$Beta > 0 & Filtered_24_Intron.df$Expression > 0), "Number_hyper_down" = sum(Filtered_24_Intron.df$Beta > 0 & Filtered_24_Intron.df$Expression < 0), "Total" = nrow(Filtered_24_Intron.df))
 
 Methylation_Intron_24.df <- tbl_df(Methylation_Intron_24.df)
 Methylation_Intron_24.df <- Methylation_Intron_24.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_coding_24.df <- data.frame("Number_hypo" = sum(Filtered_24_coding.df$Beta < 0), "Number_hyper" = sum(Filtered_24_coding.df$Beta > 0), "Number_up" = sum(Filtered_24_coding.df$Expression > 0), "Number_down" = sum(Filtered_24_coding.df$Expression < 0))
+Methylation_coding_24.df <- data.frame("Number_hypo_up" = sum(Filtered_24_coding.df$Beta < 0 & Filtered_24_coding.df$Expression > 0), "Number_hypo_down" = sum(Filtered_24_coding.df$Beta < 0 & Filtered_24_coding.df$Expression < 0), "Number_hyper_up" = sum(Filtered_24_coding.df$Beta > 0 & Filtered_24_coding.df$Expression > 0), "Number_hyper_down" = sum(Filtered_24_coding.df$Beta > 0 & Filtered_24_coding.df$Expression < 0), "Total" = nrow(Filtered_24_coding.df))
 
 Methylation_coding_24.df <- tbl_df(Methylation_coding_24.df)
 Methylation_coding_24.df <- Methylation_coding_24.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_threeUTR_24.df <- data.frame("Number_hypo" = sum(Filtered_24_threeUTR.df$Beta < 0), "Number_hyper" = sum(Filtered_24_threeUTR.df$Beta > 0), "Number_up" = sum(Filtered_24_threeUTR.df$Expression > 0), "Number_down" = sum(Filtered_24_threeUTR.df$Expression < 0))
+Methylation_threeUTR_24.df <- data.frame("Number_hypo_up" = sum(Filtered_24_threeUTR.df$Beta < 0 & Filtered_24_threeUTR.df$Expression > 0), "Number_hypo_down" = sum(Filtered_24_threeUTR.df$Beta < 0 & Filtered_24_threeUTR.df$Expression < 0), "Number_hyper_up" = sum(Filtered_24_threeUTR.df$Beta > 0 & Filtered_24_threeUTR.df$Expression > 0), "Number_hyper_down" = sum(Filtered_24_threeUTR.df$Beta > 0 & Filtered_24_threeUTR.df$Expression < 0), "Total" = nrow(Filtered_24_threeUTR.df))
 
 Methylation_threeUTR_24.df <- tbl_df(Methylation_threeUTR_24.df)
 Methylation_threeUTR_24.df <- Methylation_threeUTR_24.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
 ##72
-Methylation_Promoter_72.df <- data.frame("Number_hypo" = sum(Filtered_72_Promoter.df$Beta < 0), "Number_hyper" = sum(Filtered_72_Promoter.df$Beta > 0), "Number_up" = sum(Filtered_72_Promoter.df$Expression > 0), "Number_down" = sum(Filtered_72_Promoter.df$Expression < 0))
+Methylation_Promoter_72.df <- data.frame("Number_hypo_up" = sum(Filtered_72_Promoter.df$Beta < 0 & Filtered_72_Promoter.df$Expression > 0), "Number_hypo_down" = sum(Filtered_72_Promoter.df$Beta < 0 & Filtered_72_Promoter.df$Expression < 0), "Number_hyper_up" = sum(Filtered_72_Promoter.df$Beta > 0 & Filtered_72_Promoter.df$Expression > 0), "Number_hyper_down" = sum(Filtered_72_Promoter.df$Beta > 0 & Filtered_72_Promoter.df$Expression < 0), "Total" = nrow(Filtered_72_Promoter.df))
 
 Methylation_Promoter_72.df <- tbl_df(Methylation_Promoter_72.df)
 Methylation_Promoter_72.df <- Methylation_Promoter_72.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_Intron_72.df <- data.frame("Number_hypo" = sum(Filtered_72_Intron.df$Beta < 0), "Number_hyper" = sum(Filtered_72_Intron.df$Beta > 0), "Number_up" = sum(Filtered_72_Intron.df$Expression > 0), "Number_down" = sum(Filtered_72_Intron.df$Expression < 0))
+Methylation_Intron_72.df <- data.frame("Number_hypo_up" = sum(Filtered_72_Intron.df$Beta < 0 & Filtered_72_Intron.df$Expression > 0), "Number_hypo_down" = sum(Filtered_72_Intron.df$Beta < 0 & Filtered_72_Intron.df$Expression < 0), "Number_hyper_up" = sum(Filtered_72_Intron.df$Beta > 0 & Filtered_72_Intron.df$Expression > 0), "Number_hyper_down" = sum(Filtered_72_Intron.df$Beta > 0 & Filtered_72_Intron.df$Expression < 0), "Total" = nrow(Filtered_72_Intron.df))
 
 Methylation_Intron_72.df <- tbl_df(Methylation_Intron_72.df)
 Methylation_Intron_72.df <- Methylation_Intron_72.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_coding_72.df <- data.frame("Number_hypo" = sum(Filtered_72_coding.df$Beta < 0), "Number_hyper" = sum(Filtered_72_coding.df$Beta > 0), "Number_up" = sum(Filtered_72_coding.df$Expression > 0), "Number_down" = sum(Filtered_72_coding.df$Expression < 0))
+Methylation_coding_72.df <- data.frame("Number_hypo_up" = sum(Filtered_72_coding.df$Beta < 0 & Filtered_72_coding.df$Expression > 0), "Number_hypo_down" = sum(Filtered_72_coding.df$Beta < 0 & Filtered_72_coding.df$Expression < 0), "Number_hyper_up" = sum(Filtered_72_coding.df$Beta > 0 & Filtered_72_coding.df$Expression > 0), "Number_hyper_down" = sum(Filtered_72_coding.df$Beta > 0 & Filtered_72_coding.df$Expression < 0), "Total" = nrow(Filtered_72_coding.df))
 
 Methylation_coding_72.df <- tbl_df(Methylation_coding_72.df)
 Methylation_coding_72.df <- Methylation_coding_72.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_threeUTR_72.df <- data.frame("Number_hypo" = sum(Filtered_72_threeUTR.df$Beta < 0), "Number_hyper" = sum(Filtered_72_threeUTR.df$Beta > 0), "Number_up" = sum(Filtered_72_threeUTR.df$Expression > 0), "Number_down" = sum(Filtered_72_threeUTR.df$Expression < 0))
+Methylation_threeUTR_72.df <- data.frame("Number_hypo_up" = sum(Filtered_72_threeUTR.df$Beta < 0 & Filtered_72_threeUTR.df$Expression > 0), "Number_hypo_down" = sum(Filtered_72_threeUTR.df$Beta < 0 & Filtered_72_threeUTR.df$Expression < 0), "Number_hyper_up" = sum(Filtered_72_threeUTR.df$Beta > 0 & Filtered_72_threeUTR.df$Expression > 0), "Number_hyper_down" = sum(Filtered_72_threeUTR.df$Beta > 0 & Filtered_72_threeUTR.df$Expression < 0), "Total" = nrow(Filtered_72_threeUTR.df))
 
 Methylation_threeUTR_72.df <- tbl_df(Methylation_threeUTR_72.df)
 Methylation_threeUTR_72.df <- Methylation_threeUTR_72.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
 ##96
-Methylation_Promoter_96.df <- data.frame("Number_hypo" = sum(Filtered_96_Promoter.df$Beta < 0), "Number_hyper" = sum(Filtered_96_Promoter.df$Beta > 0), "Number_up" = sum(Filtered_96_Promoter.df$Expression > 0), "Number_down" = sum(Filtered_96_Promoter.df$Expression < 0))
+Methylation_Promoter_96.df <- data.frame("Number_hypo_up" = sum(Filtered_96_Promoter.df$Beta < 0 & Filtered_96_Promoter.df$Expression > 0), "Number_hypo_down" = sum(Filtered_96_Promoter.df$Beta < 0 & Filtered_96_Promoter.df$Expression < 0), "Number_hyper_up" = sum(Filtered_96_Promoter.df$Beta > 0 & Filtered_96_Promoter.df$Expression > 0), "Number_hyper_down" = sum(Filtered_96_Promoter.df$Beta > 0 & Filtered_96_Promoter.df$Expression < 0), "Total" = nrow(Filtered_96_Promoter.df))
 
 Methylation_Promoter_96.df <- tbl_df(Methylation_Promoter_96.df)
 Methylation_Promoter_96.df <- Methylation_Promoter_96.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_Intron_96.df <- data.frame("Number_hypo" = sum(Filtered_96_Intron.df$Beta < 0), "Number_hyper" = sum(Filtered_96_Intron.df$Beta > 0), "Number_up" = sum(Filtered_96_Intron.df$Expression > 0), "Number_down" = sum(Filtered_96_Intron.df$Expression < 0))
+Methylation_Intron_96.df <- data.frame("Number_hypo_up" = sum(Filtered_96_Intron.df$Beta < 0 & Filtered_96_Intron.df$Expression > 0), "Number_hypo_down" = sum(Filtered_96_Intron.df$Beta < 0 & Filtered_96_Intron.df$Expression < 0), "Number_hyper_up" = sum(Filtered_96_Intron.df$Beta > 0 & Filtered_96_Intron.df$Expression > 0), "Number_hyper_down" = sum(Filtered_96_Intron.df$Beta > 0 & Filtered_96_Intron.df$Expression < 0), "Total" = nrow(Filtered_96_Intron.df))
 
 Methylation_Intron_96.df <- tbl_df(Methylation_Intron_96.df)
 Methylation_Intron_96.df <- Methylation_Intron_96.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_coding_96.df <- data.frame("Number_hypo" = sum(Filtered_96_coding.df$Beta < 0), "Number_hyper" = sum(Filtered_96_coding.df$Beta > 0), "Number_up" = sum(Filtered_96_coding.df$Expression > 0), "Number_down" = sum(Filtered_96_coding.df$Expression < 0))
+Methylation_coding_96.df <- data.frame("Number_hypo_up" = sum(Filtered_96_coding.df$Beta < 0 & Filtered_96_coding.df$Expression > 0), "Number_hypo_down" = sum(Filtered_96_coding.df$Beta < 0 & Filtered_96_coding.df$Expression < 0), "Number_hyper_up" = sum(Filtered_96_coding.df$Beta > 0 & Filtered_96_coding.df$Expression > 0), "Number_hyper_down" = sum(Filtered_96_coding.df$Beta > 0 & Filtered_96_coding.df$Expression < 0), "Total" = nrow(Filtered_96_coding.df))
 
 Methylation_coding_96.df <- tbl_df(Methylation_coding_96.df)
 Methylation_coding_96.df <- Methylation_coding_96.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
 
-Methylation_threeUTR_96.df <- data.frame("Number_hypo" = sum(Filtered_96_threeUTR.df$Beta < 0), "Number_hyper" = sum(Filtered_96_threeUTR.df$Beta > 0), "Number_up" = sum(Filtered_96_threeUTR.df$Expression > 0), "Number_down" = sum(Filtered_96_threeUTR.df$Expression < 0))
+Methylation_threeUTR_96.df <- data.frame("Number_hypo_up" = sum(Filtered_96_threeUTR.df$Beta < 0 & Filtered_96_threeUTR.df$Expression > 0), "Number_hypo_down" = sum(Filtered_96_threeUTR.df$Beta < 0 & Filtered_96_threeUTR.df$Expression < 0), "Number_hyper_up" = sum(Filtered_96_threeUTR.df$Beta > 0 & Filtered_96_threeUTR.df$Expression > 0), "Number_hyper_down" = sum(Filtered_96_threeUTR.df$Beta > 0 & Filtered_96_threeUTR.df$Expression < 0), "Total" = nrow(Filtered_96_threeUTR.df))
 
 Methylation_threeUTR_96.df <- tbl_df(Methylation_threeUTR_96.df)
 Methylation_threeUTR_96.df <- Methylation_threeUTR_96.df %>%
-  mutate(Percent_hypo = Number_hypo/(Number_hypo+Number_hyper)*100, Percent_hyper = Number_hyper/(Number_hypo+Number_hyper)*100, Percent_up = Number_up/(Number_up+Number_down)*100, Percent_down = Number_down/(Number_up+Number_down)*100) %>%
+  mutate(Percent_hypo_up = Number_hypo_up/(Total)*100, Percent_hypo_down = Number_hypo_down/(Total)*100, Percent_hyper_up = Number_hyper_up/(Total)*100, Percent_hyper_down = Number_hyper_down/(Total)*100) %>%
   print()
+
 
 
 #' 
@@ -1225,56 +1250,56 @@ Methylation_threeUTR.df <- tbl_df(Methylation_threeUTR.df)
 ## All groups
 Methylation_Direction.df <- Methylation_Direction.df %>%
   mutate(Group = Group) %>%
-  dplyr::select(Group, Percent_hypo, Percent_hyper, Percent_up, Percent_down) %>%
+  dplyr::select(Group, Percent_hypo_up, Percent_hypo_down, Percent_hyper_up, Percent_hyper_down) %>%
   print()
 
 ## Promoter
 Methylation_Promoter.df <- Methylation_Promoter.df %>%
   mutate(Group = Group) %>%
-  dplyr::select(Group, Percent_hypo, Percent_hyper, Percent_up, Percent_down) %>%
+  dplyr::select(Group, Percent_hypo_up, Percent_hypo_down, Percent_hyper_up, Percent_hyper_down) %>%
   print()
 ## Intron
 Methylation_Intron.df <- Methylation_Intron.df %>%
   mutate(Group = Group) %>%
-  dplyr::select(Group, Percent_hypo, Percent_hyper, Percent_up, Percent_down) %>%
+  dplyr::select(Group, Percent_hypo_up, Percent_hypo_down, Percent_hyper_up, Percent_hyper_down) %>%
   print()
 ## Coding
 Methylation_coding.df <- Methylation_coding.df %>%
   mutate(Group = Group) %>%
-  dplyr::select(Group, Percent_hypo, Percent_hyper, Percent_up, Percent_down) %>%
+  dplyr::select(Group, Percent_hypo_up, Percent_hypo_down, Percent_hyper_up, Percent_hyper_down) %>%
   print()
 ## threeUTR
 Methylation_threeUTR.df <- Methylation_threeUTR.df %>%
   mutate(Group = Group) %>%
-  dplyr::select(Group, Percent_hypo, Percent_hyper, Percent_up, Percent_down) %>%
+  dplyr::select(Group, Percent_hypo_up, Percent_hypo_down, Percent_hyper_up, Percent_hyper_down) %>%
   print()
 # Organize data "tidier"
 ## All groups
 Methylation_Direction.df <- Methylation_Direction.df %>%
-  dplyr::rename(Hypo = "Percent_hypo", Hyper = "Percent_hyper", Up = "Percent_up", Down = "Percent_down") %>%
-  gather(Direction, Percent, Hypo:Down, na.rm = FALSE, convert = FALSE) %>%
+  dplyr::rename("Hypo + up" = "Percent_hypo_up", "Hypo + down" = "Percent_hypo_down", "Hyper + up" = "Percent_hyper_up", "Hyper + down" = "Percent_hyper_down") %>%
+  gather(Direction, Percent, "Hypo + up":"Hyper + down", na.rm = FALSE, convert = FALSE) %>%
   print()
 
 ## Promoter
 Methylation_Promoter.df <- Methylation_Promoter.df %>%
-  dplyr::rename(Hypo = "Percent_hypo", Hyper = "Percent_hyper", Up = "Percent_up", Down = "Percent_down") %>%
-  gather(Direction, Percent, Hypo:Down, na.rm = FALSE, convert = FALSE) %>%
+  dplyr::rename("Hypo + up" = "Percent_hypo_up", "Hypo + down" = "Percent_hypo_down", "Hyper + up" = "Percent_hyper_up", "Hyper + down" = "Percent_hyper_down") %>%
+  gather(Direction, Percent, "Hypo + up":"Hyper + down", na.rm = FALSE, convert = FALSE) %>%
   print()
 ## Intron
 Methylation_Intron.df <- Methylation_Intron.df %>%
-  dplyr::rename(Hypo = "Percent_hypo", Hyper = "Percent_hyper", Up = "Percent_up", Down = "Percent_down") %>%
-  gather(Direction, Percent, Hypo:Down, na.rm = FALSE, convert = FALSE) %>%
+  dplyr::rename("Hypo + up" = "Percent_hypo_up", "Hypo + down" = "Percent_hypo_down", "Hyper + up" = "Percent_hyper_up", "Hyper + down" = "Percent_hyper_down") %>%
+  gather(Direction, Percent, "Hypo + up":"Hyper + down", na.rm = FALSE, convert = FALSE) %>%
   print()
 ## Coding
 Methylation_coding.df <- Methylation_coding.df %>%
-  dplyr::rename(Hypo = "Percent_hypo", Hyper = "Percent_hyper", Up = "Percent_up", Down = "Percent_down") %>%
-  gather(Direction, Percent, Hypo:Down, na.rm = FALSE, convert = FALSE) %>%
+  dplyr::rename("Hypo + up" = "Percent_hypo_up", "Hypo + down" = "Percent_hypo_down", "Hyper + up" = "Percent_hyper_up", "Hyper + down" = "Percent_hyper_down") %>%
+  gather(Direction, Percent, "Hypo + up":"Hyper + down", na.rm = FALSE, convert = FALSE) %>%
   print()
 
 ## threeUTR
 Methylation_threeUTR.df <- Methylation_threeUTR.df %>%
-  dplyr::rename(Hypo = "Percent_hypo", Hyper = "Percent_hyper", Up = "Percent_up", Down = "Percent_down") %>%
-  gather(Direction, Percent, Hypo:Down, na.rm = FALSE, convert = FALSE) %>%
+  dplyr::rename("Hypo + up" = "Percent_hypo_up", "Hypo + down" = "Percent_hypo_down", "Hyper + up" = "Percent_hyper_up", "Hyper + down" = "Percent_hyper_down") %>%
+  gather(Direction, Percent, "Hypo + up":"Hyper + down", na.rm = FALSE, convert = FALSE) %>%
   print()
 #Turn your 'treatment' column into a character vector
 ## All groups
@@ -1325,7 +1350,6 @@ Methylation_Intron.df$Direction <- factor(Methylation_Intron.df$Direction, level
 Methylation_coding.df$Direction <- factor(Methylation_coding.df$Direction, levels=unique(Methylation_coding.df$Direction))
 ## threeUTR
 Methylation_threeUTR.df$Direction <- factor(Methylation_threeUTR.df$Direction, levels=unique(Methylation_threeUTR.df$Direction))
-
 
 #' 
 #' 
